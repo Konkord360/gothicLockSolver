@@ -32,10 +32,6 @@ func (l *Latch) move(m int) {
 	}
 }
 
-func (l *Latch) moveWithoutEffects(m int) {
-	l.position += m
-}
-
 func (e Effect) apply(originalMove int) {
 	moves := e.moves	
 	targets := e.targets
@@ -43,6 +39,10 @@ func (e Effect) apply(originalMove int) {
 	for i, target := range targets {
 		target.moveWithoutEffects(moves[i]*originalMove)
 	}
+}
+
+func (l *Latch) moveWithoutEffects(m int) {
+	l.position += m
 }
 
 func (l Lock) printLock() {
