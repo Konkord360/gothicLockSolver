@@ -66,13 +66,13 @@ func (lock Lock) PrintEffects() {
 	fmt.Println("***********")
 	for i, l := range lock.Latches {
 		for _, e := range l.Effects {
-			fmt.Printf("Latch %d moves latch %d in %d \n", i, lock.indexOf(e.Target), e.Move)
+			fmt.Printf("Latch %d moves latch %d in %d \n", i, lock.IndexOf(e.Target), e.Move)
 		}
 	}
 	fmt.Println("***********")
 }
 
-func (lock Lock) indexOf(latch *Latch) int {
+func (lock Lock) IndexOf(latch *Latch) int {
 	for i, lt := range lock.Latches {
 		if lt == latch {
 			return i
