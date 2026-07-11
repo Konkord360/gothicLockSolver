@@ -1,16 +1,18 @@
 package lock
 
-import( "fmt"
+import (
 	"bufio"
+	"fmt"
 	"os"
-	"strconv" )
+	"strconv"
+)
 
 const (
 	opposite int = -1
 	same     int = 1
 
-	Left     int = -1
-	Right    int = 1
+	Left  int = -1
+	Right int = 1
 )
 
 type Lock struct {
@@ -18,59 +20,95 @@ type Lock struct {
 }
 
 type Latch struct {
-	Position int      // latch is in a position 1 -7 with 4 being the middle
-	Effects  []Effect // latch hes effects - can move other latches
+	Position int      // latch is in a position -3 to 3 with 0 being the middle
+	Effects  []Effect // latch has singular effect
 }
 
 type Effect struct {
-	Targets []*Latch // effect affects latches
-	Moves   []int    // moves to execute on latches - 1 to 1 mapping moves to targets
+	Target *Latch // effect affects 0 to n latches
+	Move   int    // moves to execute on latches - 1 to 1 mapping moves to targets - same or opposite direction
 }
 
 func (l *Latch) Move(m int) {
 	l.Position += m
-
 	for _, e := range l.Effects {
 		e.apply(m)
 	}
 }
 
 func (e Effect) apply(originalMove int) {
-	moves := e.Moves
-	targets := e.Targets
-
-	for i, target := range targets {
-		target.moveWithoutEffects(moves[i] * originalMove)
-	}
+	e.Target.moveWithoutEffects(e.Move * originalMove)
 }
 
 func (l *Latch) moveWithoutEffects(m int) {
 	l.Position += m
 }
 
-func (l Lock) PrintLock() {
+func (lock Lock) PrintLock() {
 	fmt.Println("***********")
-	for _, e := range l.Latches {
-		fmt.Println(e.Position)
+	for _, l := range lock.Latches {
+		fmt.Println(l.Position)
 
 	}
 	fmt.Println("***********")
 }
 
-//make it any better plz mate - i cant read it 
+func (lock Lock) PrintEffects() {
+	fmt.Println("***********")
+	for i, l := range lock.Latches {
+		for _, e := range l.Effects {
+			fmt.Printf("Latch %d moves latch %d in %d \n", i, lock.indexOf(e.Target), e.Move)
+		}
+	}
+	fmt.Println("***********")
+}
+
+func (lock Lock) indexOf(latch *Latch) int {
+	for i, lt := range lock.Latches {
+		if lt == latch {
+			return i
+		}
+	}
+	return 0
+}
+
+// dunno about using scanners in function inputs - we'll see how it goes int testing - would be great if it was easily
+// changable for an actual tui input later  - probably rewrite to gather user input first - then act on it - do not mix like that
+// make it any better plz mate - i cant read it
 func CreateLockFromUserInput() (*Lock, error) {
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Please input lock configuration:")
+	lock := &Lock{}
+
+	err := getLockLatchConfiguration(lock, scanner)
+	if err != nil {
+		return nil, fmt.Errorf("Error during latch configuration: %w", err)
+	}
+
+	err = assingEffectsToLatches(lock, scanner)
+	if err != nil {
+		return nil, fmt.Errorf("Error during effect assignment: %w", err)
+	}
+
+	err = assignStartingPositionsToLatches(lock, scanner)
+	if err != nil {
+		return nil, fmt.Errorf("Error starting positions assignment: %w", err)
+	}
+
+	return lock, nil
+}
+
+func getLockLatchConfiguration(lock *Lock, scanner *bufio.Scanner) error {
 	fmt.Print("Number of latches: ")
 	scanner.Scan()
 	latchesText := scanner.Text()
 	latches, err := strconv.Atoi(latchesText)
 	if err != nil {
-		return nil, fmt.Errorf("Latches must be a number, %w", err)
+		return fmt.Errorf("Latches must be a number, %w", err)
 	}
 
 	if latches <= 2 {
-		return nil, fmt.Errorf("There must be more then two latches")
+		return fmt.Errorf("There must be more then two latches")
 	}
 
 	latchesArray := []*Latch{}
@@ -78,73 +116,74 @@ func CreateLockFromUserInput() (*Lock, error) {
 		latchesArray = append(latchesArray, &Latch{})
 	}
 
-	lockVar := Lock{Latches: latchesArray}
+	lock.Latches = latchesArray
+	return nil
+}
 
+func assingEffectsToLatches(lock *Lock, scanner *bufio.Scanner) error {
 	fmt.Println("Assing an effect to each of the latches: ")
-
-	for i := range latches {
-		fmt.Printf("Latch %d - number of effects", i)	
-		scanner.Scan()
-		effectsText := scanner.Text()
-		effects, err := strconv.Atoi(effectsText)
-
+	for i := range lock.Latches {
+		numberOfAffectedLatches, err := readNumberOfEffectsFromUser(i, scanner)
 		if err != nil {
-			return nil, fmt.Errorf("effects must be a number, %w", err)
+			fmt.Println("Error during effects assignment: %w", err)
 		}
-		if effects < 0 {
-			return nil, fmt.Errorf("effects must be non negative number")
-		}
-
-		effectArray := []Effect{}
-		latch := Latch{Position: i, Effects: effectArray}
-		fmt.Println(latch)
-		movesArray := []int{}
-		targetArray := []*Latch{}
-		for j := range effects {
-			fmt.Println("Input effects configuration:")
-
-			fmt.Printf("effect %d moves latch x \n", j)
-
-			scanner.Scan()
-			latchMoved := scanner.Text()
-			latchNumber, err := strconv.Atoi(latchMoved)
-			targetArray = append(targetArray, lockVar.Latches[latchNumber])
-
+		for j := range numberOfAffectedLatches {
+			targetLatch, moveDir, err := getEffectConfigurationFromUser(j, scanner)
 			if err != nil {
-				return nil, fmt.Errorf("Latch moved must be a number, %w", err)
+				return fmt.Errorf("Error during effect configuration: %w", err)
 			}
-
-
-			fmt.Printf(" in the x direction (1 means same, -1 means opposite\n")
-			scanner.Scan()
-			directionText := scanner.Text()
-			direction, err := strconv.Atoi(directionText)
-			movesArray = append(movesArray, direction)
-
-			if err != nil {
-				return nil, fmt.Errorf("Latch moved must be a number, %w", err)
-			}
-			latch.Effects = append(latch.Effects, Effect{Moves: movesArray, Targets: targetArray})
+			lock.Latches[i].Effects = append(lock.Latches[i].Effects, Effect{Target: lock.Latches[targetLatch], Move: moveDir})
 		}
-		lockVar.Latches[i] = &latch
+	}
+	return nil
+}
+
+func readNumberOfEffectsFromUser(latch int, scanner *bufio.Scanner) (int, error) {
+	fmt.Printf("Latch %d - number of effects: ", latch)
+	scanner.Scan()
+	effectsText := scanner.Text()
+	effects, err := strconv.Atoi(effectsText)
+	if err != nil {
+		return 0, fmt.Errorf("effects must be a number, %w", err)
+	}
+	if effects < 0 {
+		return 0, fmt.Errorf("effects must be non negative number")
+	}
+	return effects, nil
+}
+
+func getEffectConfigurationFromUser(effectNumber int, scanner *bufio.Scanner) (int, int, error) {
+	fmt.Println("Input effects configuration:")
+	fmt.Printf("effect %d moves latch x \n", effectNumber)
+	scanner.Scan()
+	latchMoved := scanner.Text()
+	latchNumber, err := strconv.Atoi(latchMoved)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Latch moved must be a number, %w", err)
 	}
 
-	fmt.Println("Input latch starting positions")
+	fmt.Printf(" in the x direction (1 means same, -1 means opposite\n")
+	scanner.Scan()
+	directionText := scanner.Text()
+	direction, err := strconv.Atoi(directionText)
+	if err != nil {
+		return 0, 0, fmt.Errorf("direction must be a number, %w", err)
+	}
 
-	for i := range latchesArray {
+	return latchNumber, direction, nil
+}
+
+func assignStartingPositionsToLatches(lock *Lock, scanner *bufio.Scanner) error {
+	fmt.Println("Input latch starting positions")
+	for i := range lock.Latches {
 		fmt.Printf("Latch %d starting position: ", i)
 		scanner.Scan()
 		effectsText := scanner.Text()
 		pos, err := strconv.Atoi(effectsText)
 		if err != nil {
-			return nil, fmt.Errorf("Latch starting postion must be a number, %w", err)
+			return fmt.Errorf("Latch starting postion must be a number, %w", err)
 		}
-		latchesArray[i].Position = pos
+		lock.Latches[i].Position = pos
 	}
-
-		
-	fmt.Println("Created lock:")
-	lockVar.PrintLock()
-
-	return &lockVar, nil
+	return nil
 }

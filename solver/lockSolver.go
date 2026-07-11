@@ -5,12 +5,12 @@ import (
 	"gothicModSover/lock"
 )
 
-func RunSolver() error{
-	lockCraeted, err := lock.CreateLockFromUserInput()
-	if (err != nil) {
+func RunSolver() error {
+	lockCreated, err := lock.CreateLockFromUserInput()
+	if err != nil {
 		return fmt.Errorf("Error occured during lock creation form user input: %w", err)
 	}
-	fmt.Println(lockCraeted)
+	lockCreated.PrintLock()
+	lockCreated.PrintEffects()
 	return nil
 }
-

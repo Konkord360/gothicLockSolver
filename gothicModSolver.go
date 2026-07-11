@@ -13,7 +13,7 @@ func main() {
 		simulator.RunSimulator()
 	case "":
 		error := solver.RunSolver()
-		if(error != nil) {
+		if error != nil {
 			fmt.Printf("Received error from the solver: %s", error)
 		}
 	}
