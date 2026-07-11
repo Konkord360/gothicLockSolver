@@ -6,11 +6,19 @@ import (
 )
 
 func RunSolver() error {
-	lockCreated, err := lock.CreateLockFromUserInput()
+	lck, err := lock.CreateLockFromUserInput()
 	if err != nil {
 		return fmt.Errorf("Error occured during lock creation form user input: %w", err)
 	}
-	lockCreated.PrintLock()
-	lockCreated.PrintEffects()
+	lck.PrintLock()
+	lck.PrintEffects()
+
+	solveLock(lck)
+
 	return nil
+}
+
+
+func solveLock(lck *lock.Lock) {
+
 }

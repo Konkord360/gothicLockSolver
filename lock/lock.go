@@ -29,19 +29,28 @@ type Effect struct {
 	Move   int    // moves to execute on latches - 1 to 1 mapping moves to targets - same or opposite direction
 }
 
-func (l *Latch) Move(m int) {
+func (l *Latch) Move(m int) error {
 	l.Position += m
+	if l.Position > 3 || l.Position < -3 {
+		return fmt.Errorf("Illegal move - out of bounds of the lock")	
+	}
+
 	for _, e := range l.Effects {
 		e.apply(m)
 	}
+	return nil
 }
 
 func (e Effect) apply(originalMove int) {
 	e.Target.moveWithoutEffects(e.Move * originalMove)
 }
 
-func (l *Latch) moveWithoutEffects(m int) {
+func (l *Latch) moveWithoutEffects(m int) error {
 	l.Position += m
+	if l.Position > 3 || l.Position < -3 {
+		return fmt.Errorf("Illegal move - out of bounds of the lock")	
+	}
+	return nil
 }
 
 func (lock Lock) PrintLock() {
