@@ -8,11 +8,12 @@ import (
 )
 
 func RunSolver() error {
-//	lck, err := lock.CreateLockFromUserInput()
-//	if err != nil {
-//		return fmt.Errorf("Error occured during lock creation form user input: %w", err)
-//	}
-	lck := lock.CreateValidationLock6()
+	//	lck, err := lock.CreateLockFromUserInput()
+	//	if err != nil {
+	//		return fmt.Errorf("Error occured during lock creation form user input: %w", err)
+	//	}
+	//lck := lock.CreateValidationLock6()
+	lck := lock.CreateHardLock6()
 	lck.PrintLock()
 	lck.PrintEffects()
 
@@ -21,63 +22,58 @@ func RunSolver() error {
 	return nil
 }
 
-
 func solveLock(lck *lock.Lock) {
- // lock positions array
+	// lock positions array
 	startingPositions := getPositionsArray(lck)
 	fmt.Println(startingPositions)
 
-	// array of moves array 
+	// array of moves array
 	moves := getMovesArray(lck)
 	fmt.Println(moves)
 	moves = addNegativeMoves(moves)
 	fmt.Println(moves)
 
 	fmt.Printf("Starting position: %d \n", startingPositions)
-	currentPosition, err := move(startingPositions, moves[0])
+
+	solvingMoves, err := solve(startingPositions, moves)
 	if err != nil {
-		fmt.Println(err)
 		return
 	}
 
-	fmt.Printf("Lock position after move: %d\n", moves[0])
-	fmt.Println(currentPosition)
-
-
-	solvingMoves, err := solve(startingPositions, moves) 
-	if err != nil { return }
-
 	fmt.Println("Lock is solved - required moves: ")
 	fmt.Println(solvingMoves)
-	fmt.Println("So that would be:" )
+	fmt.Println("So that would be:")
 	latchCount := len(startingPositions)
 
-
-	solutionString := ""
+	builder := strings.Builder{}
+	currentPosition := startingPositions
+	fmt.Printf("Starting position: %d \n", currentPosition)
 	for _, mv := range solvingMoves {
-		idOfMove := indexOf(mv, moves)	
-		fmt.Println("Id of the move")	
-		fmt.Println(idOfMove)
-
-		if idOfMove > latchCount -1 { 
-			solutionString += strconv.Itoa(idOfMove - latchCount + 1) + "L"	
+		idOfMove := indexOf(mv, moves)
+		currentPosition, err = move(currentPosition, mv)
+		if err != nil {
+			continue
+		}
+		if idOfMove > latchCount-1 {
+			builder.WriteString(strconv.Itoa(idOfMove-latchCount+1))
+			builder.WriteString("P ")
 		} else {
-			solutionString += strconv.Itoa(idOfMove + 1) + "P"	
+			builder.WriteString(strconv.Itoa(idOfMove+1))
+			builder.WriteString("L ")
 		}
 	}
+	solutionString := builder.String()
 
-	fmt.Println("Final solution combination:")
-	fmt.Println(solutionString)
-	// now we have array representation of a lock with an array of all the possible moves in each positions
-	// so now we iterate over all the moves - keeping already done ones 
+	fmt.Printf("Final solution combination of %d moves:\n", len(solvingMoves))
+	fmt.Println(compressSolutionMoves(solutionString))
 }
 
 func indexOf(move []int, moves [][]int) int {
 	for i, m := range moves {
 		areSame := true
 		for j := range m {
-	//	fmt.Println(move, m)
-			if move[j] != m[j] { 
+			//	fmt.Println(move, m)
+			if move[j] != m[j] {
 				areSame = false
 				continue
 			}
@@ -88,7 +84,6 @@ func indexOf(move []int, moves [][]int) int {
 	}
 	return -1
 }
-
 
 func getPositionsArray(lck *lock.Lock) []int {
 	positions := []int{}
@@ -103,7 +98,7 @@ func getPositionsArray(lck *lock.Lock) []int {
 func getMovesArray(lck *lock.Lock) [][]int {
 	moves := [][]int{}
 	for i, l := range lck.Latches {
-		movesSlice := []int{0,0,0,0,0,0}
+		movesSlice := []int{0, 0, 0, 0, 0, 0}
 		for _, e := range l.Effects {
 			movesSlice[lck.IndexOf(e.Target)] = e.Move
 		}
@@ -114,10 +109,10 @@ func getMovesArray(lck *lock.Lock) [][]int {
 	return moves
 }
 
-func addNegativeMoves(moves [][]int) [][]int{
+func addNegativeMoves(moves [][]int) [][]int {
 	negativeMoves := [][]int{}
 	for i, mv := range moves {
-		negativeMoves = append(negativeMoves, []int{0,0,0,0,0,0})
+		negativeMoves = append(negativeMoves, []int{0, 0, 0, 0, 0, 0})
 		for j, mv2 := range mv {
 			negativeMoves[i][j] = -mv2
 		}
@@ -142,26 +137,34 @@ func solve(startingPosition []int, moves [][]int) ([][]int, error) {
 	fmt.Printf("Starting to search for a solution of a lock: %d\n", startingPosition)
 
 	m := make(map[string][][]int)
-
-	fmt.Println(m)
-	
+	visited := make(map[string]bool)
 	solution := [][]int{}
-	moveCount := len(moves)
-	fmt.Println(moveCount)
-
-	//for {
 	positionsAfterMove := [][]int{}
+	visited[serializeToString(startingPosition)] = true
 	positionsAfterMove = append(positionsAfterMove, startingPosition)
 	for {
 		resultPositions := [][]int{}
 		for j := range positionsAfterMove {
 			for i := range moves {
 				resultingPosition, err := move(positionsAfterMove[j], moves[i])
-				m[serializeToString(resultingPosition)] = append(m[serializeToString(positionsAfterMove[j])], moves[i])
-				if err != nil { 
-					fmt.Printf("Move %d is illegal in the %d position\n", moves[i], positionsAfterMove[j])
+				if err != nil {
 					continue
 				}
+				if visited[serializeToString(resultingPosition)] {
+					continue
+				}
+
+				visited[serializeToString(resultingPosition)] = true
+
+				//m[serializeToString(resultingPosition)] = append(m[serializeToString(positionsAfterMove[j])], moves[i])
+				currentKey := serializeToString(positionsAfterMove[j])
+				resultingKey := serializeToString(resultingPosition)
+				parentPath := m[currentKey]
+				path := make([][]int, len(parentPath), len(parentPath)+1)
+				copy(path, parentPath)
+				path = append(path, moves[i])
+				m[resultingKey] = path
+
 				if isSolved(resultingPosition) {
 					fmt.Println("Lock is solved!")
 					fmt.Println(resultingPosition)
@@ -171,20 +174,9 @@ func solve(startingPosition []int, moves [][]int) ([][]int, error) {
 
 				resultPositions = append(resultPositions, resultingPosition)
 			}
-			fmt.Println("Legal positions after each first move:")
-			fmt.Println(resultPositions)
 		}
 		positionsAfterMove = resultPositions
 	}
-
-	//	currentPosition, err := move(startingPosition, moves[0])
-	//	if err != nil { break }
-	// solution = append(solution, moves[0])
-
-	//`if isSolved(currentPosition) { return solution, nil }
-
-	//}
-	 // return solution, nil
 }
 
 func serializeToString(pos []int) string {
@@ -204,18 +196,11 @@ func serializeToString(pos []int) string {
 
 func isSolved(slice []int) bool {
 	for i := range slice {
-		if slice[i] != 0 {return false}	
-	}
-
-	return true
-}
-
-func isOpposite(move1 []int, move2 []int) bool{
-	for i := range move1 {
-		if move1[i] != -move2[i] {
+		if slice[i] != 0 {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -228,3 +213,37 @@ func isEmpty(slice []int) bool {
 	return true
 }
 
+func compressSolutionMoves(solution string) string {
+	moves := strings.Fields(solution)
+	if len(moves) == 0 {
+		return ""
+	}
+
+	compressed := []string{}
+	current := moves[0]
+	count := 1
+
+	for _, move := range moves[1:] {
+		if move == current {
+			count++
+			continue
+		}
+
+		if count == 1 {
+			compressed = append(compressed, current)
+		} else {
+			compressed = append(compressed, fmt.Sprintf("%s %dx", current, count))
+		}
+
+		current = move
+		count = 1
+	}
+
+	if count == 1 {
+		compressed = append(compressed, current)
+	} else {
+		compressed = append(compressed, fmt.Sprintf("%s %dx", current, count))
+	}
+
+	return strings.Join(compressed, "\n")
+}

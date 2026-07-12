@@ -240,3 +240,36 @@ func CreateValidationLock6() *Lock {
 
 	return lock
 }
+
+func CreateHardLock6() *Lock {
+	l1 := &Latch{Position: 1}
+	l2 := &Latch{Position: 2}
+	l3 := &Latch{Position: -2}
+	l4 := &Latch{Position: -2}
+	l5 := &Latch{Position: -3}
+	l6 := &Latch{Position: -3}
+
+	l2.Effects = []Effect{
+		{Target: l3, Move: opposite},
+		{Target: l4, Move: same},
+		{Target: l5, Move: same},
+	}
+
+	l3.Effects = []Effect{
+		{Target: l4, Move: same},
+	}
+
+	l5.Effects = []Effect{
+		{Target: l1, Move: opposite},
+		{Target: l3, Move: opposite},
+		{Target: l6, Move: opposite},
+		{Target: l2, Move: same},
+	}
+
+	l6.Effects = []Effect{
+		{Target: l1, Move: opposite},
+		{Target: l2, Move: same},
+	}
+
+	return &Lock{Latches: []*Latch{l1, l2, l3, l4, l5, l6}}
+}
