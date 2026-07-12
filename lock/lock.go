@@ -32,7 +32,7 @@ type Effect struct {
 func (l *Latch) Move(m int) error {
 	l.Position += m
 	if l.Position > 3 || l.Position < -3 {
-		return fmt.Errorf("Illegal move - out of bounds of the lock")	
+		return fmt.Errorf("Illegal move - out of bounds of the lock")
 	}
 
 	for _, e := range l.Effects {
@@ -48,7 +48,7 @@ func (e Effect) apply(originalMove int) {
 func (l *Latch) moveWithoutEffects(m int) error {
 	l.Position += m
 	if l.Position > 3 || l.Position < -3 {
-		return fmt.Errorf("Illegal move - out of bounds of the lock")	
+		return fmt.Errorf("Illegal move - out of bounds of the lock")
 	}
 	return nil
 }
@@ -195,4 +195,48 @@ func assignStartingPositionsToLatches(lock *Lock, scanner *bufio.Scanner) error 
 		lock.Latches[i].Position = pos
 	}
 	return nil
+}
+
+func CreateValidationLock6() *Lock {
+	l0 := &Latch{Position: 0}
+	l1 := &Latch{Position: 0}
+	l2 := &Latch{Position: 0}
+	l3 := &Latch{Position: 0}
+	l4 := &Latch{Position: 0}
+	l5 := &Latch{Position: 0}
+
+	l0.Effects = []Effect{
+		{Target: l1, Move: 1},
+		{Target: l3, Move: -1},
+	}
+	l1.Effects = []Effect{
+		{Target: l2, Move: 1},
+		{Target: l4, Move: 1},
+	}
+	l2.Effects = []Effect{
+		{Target: l0, Move: -1},
+		{Target: l5, Move: 1},
+	}
+	l3.Effects = []Effect{
+		{Target: l1, Move: -1},
+		{Target: l5, Move: -1},
+	}
+
+	lock := &Lock{
+		Latches: []*Latch{l0, l1, l2, l3, l4, l5},
+	}
+
+	scramble := [][2]int{
+		{0, 1},
+		{2, -1},
+		{1, 1},
+		{3, -1},
+		{0, -1},
+		{2, 1},
+	}
+	for _, step := range scramble {
+		lock.Latches[step[0]].Move(step[1])
+	}
+
+	return lock
 }
