@@ -56,16 +56,16 @@ func solveLock(lck *lock.Lock) {
 		}
 		if idOfMove > latchCount-1 {
 			builder.WriteString(strconv.Itoa(idOfMove-latchCount+1))
-			builder.WriteString("P ")
+			builder.WriteString("P")
 		} else {
 			builder.WriteString(strconv.Itoa(idOfMove+1))
-			builder.WriteString("L ")
+			builder.WriteString("L")
 		}
 	}
 	solutionString := builder.String()
 
 	fmt.Printf("Final solution combination of %d moves:\n", len(solvingMoves))
-	fmt.Println(compressSolutionMoves(solutionString))
+	fmt.Println(compressSolution(solutionString))
 }
 
 func indexOf(move []int, moves [][]int) int {
@@ -213,37 +213,33 @@ func isEmpty(slice []int) bool {
 	return true
 }
 
-func compressSolutionMoves(solution string) string {
-	moves := strings.Fields(solution)
-	if len(moves) == 0 {
-		return ""
-	}
-
-	compressed := []string{}
-	current := moves[0]
-	count := 1
-
-	for _, move := range moves[1:] {
-		if move == current {
-			count++
+func compressSolution(solution string) string {
+	var result []string
+	var counter int = 1
+	current := solution[:2]
+	for i := 2; i < len(solution); i += 2  {
+		chunk := solution[i:i+2]
+		if chunk == current {
+			counter++
 			continue
 		}
 
-		if count == 1 {
-			compressed = append(compressed, current)
+		if counter == 1 {
+			result = append(result, current)
 		} else {
-			compressed = append(compressed, fmt.Sprintf("%s %dx", current, count))
+			result = append(result, chunk + " x " + strconv.Itoa(counter))
+			counter = 1
 		}
 
-		current = move
-		count = 1
+		current = chunk
 	}
 
-	if count == 1 {
-		compressed = append(compressed, current)
-	} else {
-		compressed = append(compressed, fmt.Sprintf("%s %dx", current, count))
-	}
+		if counter == 1 {
+			result = append(result, current)
+		} else {
+			result = append(result, current + " x " + strconv.Itoa(counter))
+			counter = 1
+		}
 
-	return strings.Join(compressed, "\n")
+	return strings.Join(result, "\n")
 }
